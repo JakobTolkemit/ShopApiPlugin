@@ -13,7 +13,7 @@
     }
   },
   "host" : "demo.sylius.org",
-  "basePath" : "/shop-api/{channelCode}",
+  "basePath" : "/shop-api",
   "tags" : [ {
     "name" : "cart",
     "description" : "All actions related to cart management.",
