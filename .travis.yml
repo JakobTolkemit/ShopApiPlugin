@@ -48,9 +48,10 @@ script:
     - vendor/bin/phpspec run --format dot -vvv --no-interaction
     - vendor/bin/phpunit
     
-    - mkdir php_api_client
       
     # Build clients from swagger  
-    - java -jar swagger-codegen-cli.jar generate -i doc/swagger.json -l php -o php_api_client/
-    
-    - vendor/bin/phpunit php_api_client/SwaggerClient-php/test/
+    - mkdir generated
+    - java -jar swagger-codegen-cli.jar generate -i doc/swagger.json -l php -o generated/
+    - cd generated/SwaggerClient-php
+    - composer install
+    - vendor/bin/phpunit
