@@ -1,0 +1,97 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "Sylius Shop API documentation",
+    "version": "1.0.0",
+    "title": "Sylius Shop API",
+    "contact": {
+      "email": "lukasz.chrusciel@sylius.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "host": "demo.sylius.com",
+  "basePath": "/shop-api",
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+
+  "paths": {
+    "/carts": {
+      "post": {
+        "tags": ["cart"],
+        "summary": "Pick up your cart from the store",
+        "description": "This endpoint will allow you to create a new cart.",
+        "operationId": "cartPickUp",
+        "responses": {
+          "201": {
+            "description": "Cart has been picked up",
+            "schema": {
+              "$ref": "#/definitions/Cart"
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "schema": {
+              "$ref": "#/definitions/GeneralError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Cart": {
+      "type": "object",
+      "description": "",
+      "properties": {
+        "tokenValue": {
+          "type": "string",
+          "example": ""
+        },
+        "channel": {
+          "type": "string",
+          "example": "WEB_GB",
+          "externalDocs": {
+            "description": "",
+            "url": ""
+          }
+        },
+        "currency": {
+          "description": "",
+          "type": "string",
+          "example": "GBP"
+        },
+        "locale": {
+          "description": "",
+          "type": "string"
+        }
+      }
+    },
+    "GeneralError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "example": 400
+        },
+        "message": {
+          "type": "string",
+          "example": "Validation failed"
+        },
+        "errors": {
+          "description": "Keys reference to the fields where the error occurred.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "sylius.shop_api.additionalProp.not_null"
+            }
+          }
+        }
+      }
+    }
+  }
+}
