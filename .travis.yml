@@ -27,8 +27,6 @@ before_install:
     - cp tests/Application/.env.test.dist tests/Application/.env.test
     - set -a && source tests/Application/.env.test && set +a
         
-    - wget http://central.maven.org/maven2/io/swagger/swagger-codegen-cli/2.4.8/swagger-codegen-cli-2.4.8.jar -O swagger-codegen-cli.jar
-
 install:
     - composer require sylius/sylius:${SYLIUS_VERSION} --no-interaction --no-update
     - composer update --no-interaction --prefer-dist
@@ -46,12 +44,9 @@ script:
         fi
 
     - vendor/bin/phpspec run --format dot -vvv --no-interaction
-    - vendor/bin/phpunit
-    
       
-    # Build clients from swagger  
-    - mkdir generated
-    - java -jar swagger-codegen-cli.jar generate -i doc/swagger.json -l php -o generated/
-    - cd generated/SwaggerClient-php
-    - composer install
+    # Build clients from swagger
+    - java -jar doc/swagger-codegen/swagger-codegen-cli.jar generate -i doc/swagger.json -l php -o generated/
+    - (cd generated/SwaggerClient-php && composer install)
+
     - vendor/bin/phpunit

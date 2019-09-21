@@ -41,7 +41,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\Sylius\\ShopApiPlugin\\": "tests/"
+            "Tests\\Sylius\\ShopApiPlugin\\": "tests/",
+            "Swagger\\Client\\": "doc/generated/SwaggerClient-php/lib/"
         }
     },
     "suggest": {
