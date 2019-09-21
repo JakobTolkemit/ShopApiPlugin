@@ -51,9 +51,6 @@ script:
     - mkdir php_api_client
       
     # Build clients from swagger  
-    - java -jar swagger-codegen-cli.jar generate \
-        -i doc/swagger.json \
-        -l php \
-        -o php_api_client
+    - java -jar swagger-codegen-cli.jar generate -i doc/swagger.json -l php -o php_api_client/
     
     - vendor/bin/phpunit php_api_client/SwaggerClient-php/test/
