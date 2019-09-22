@@ -26,7 +26,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
      */
     public function it_allows_user_to_add_new_address_to_address_book(): void
     {
-        $addressClient = $this->getAddressClient();
+        $addressClient = $this->createAddressClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password');
@@ -65,7 +65,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
      */
     public function it_does_not_allow_user_to_add_new_address_to_address_book_without_passing_required_data(): void
     {
-        $addressClient = $this->getAddressClient();
+        $addressClient = $this->createAddressClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password');
@@ -103,7 +103,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
      */
     public function it_does_not_allow_user_to_add_new_address_to_address_book_without_passing_correct_country_code(): void
     {
-        $addressClient = $this->getAddressClient();
+        $addressClient = $this->createAddressClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password');
@@ -141,7 +141,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
      */
     public function it_does_not_allow_user_to_add_new_address_to_address_book_without_passing_correct_province_code(): void
     {
-        $addressClient = $this->getAddressClient();
+        $addressClient = $this->createAddressClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password');

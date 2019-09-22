@@ -33,42 +33,42 @@ abstract class JsonApiTestCase extends \ApiTestCase\JsonApiTestCase
         return parent::get($id);
     }
 
-    protected function getAddressClient(): AddressApi
+    protected function createAddressClient(): AddressApi
     {
-        return new AddressApi(null, $this->getClientConfig());
+        return new AddressApi(null, $this->createClientConfig());
     }
 
-    protected function getCartClient(): CartApi
+    protected function createCartClient(): CartApi
     {
-        return new CartApi(null, $this->getClientConfig());
+        return new CartApi(null, $this->createClientConfig());
     }
 
-    protected function getCheckoutClient(): CheckoutApi
+    protected function createCheckoutClient(): CheckoutApi
     {
-        return new CheckoutApi(null, $this->getClientConfig());
+        return new CheckoutApi(null, $this->createClientConfig());
     }
 
-    protected function getUsersClient(): UsersApi
+    protected function createUsersClient(): UsersApi
     {
-        return new UsersApi(null, $this->getClientConfig());
+        return new UsersApi(null, $this->createClientConfig());
     }
 
-    protected function getOrderClient(): OrderApi
+    protected function createOrderClient(): OrderApi
     {
-        return new OrderApi(null, $this->getClientConfig());
+        return new OrderApi(null, $this->createClientConfig());
     }
 
-    protected function getProductsClient(): ProductsApi
+    protected function createProductsClient(): ProductsApi
     {
-        return new ProductsApi(null, $this->getClientConfig());
+        return new ProductsApi(null, $this->createClientConfig());
     }
 
-    protected function getTaxonsClient(): TaxonsApi
+    protected function createTaxonsClient(): TaxonsApi
     {
-        return new TaxonsApi(null, $this->getClientConfig());
+        return new TaxonsApi(null, $this->createClientConfig());
     }
 
-    private function getClientConfig(): Configuration
+    private function createClientConfig(): Configuration
     {
         $config = new Configuration();
         $config->setHost('localhost:8080/shop-api');
