@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Sylius\ShopApiPlugin\Controller\Cart;
 
+use Swagger\Client\ApiException;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\ShopApiPlugin\Command\Cart\AddressOrder;
 use Sylius\ShopApiPlugin\Command\Cart\AssignCustomerToCart;
@@ -24,17 +25,35 @@ final class DropCartApiTest extends JsonApiTestCase
      */
     public function it_returns_not_found_exception_if_cart_has_not_been_found(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml']);
 
-        $this->client->request('DELETE', '/shop-api/carts/SDAOSLEFNWU35H3QLI5325', [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        $token = 'SDAOSLEFNWU35H3QLI5325';
 
-        $this->assertResponse($response, 'cart/validation_cart_not_exists_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartDrop($token);
 
-        $this->client->request('DELETE', '/shop-api/carts/SDAOSLEFNWU35H3QLI5325?locale=de_DE', [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_response', self::RESPONSE_FORMAT);
 
-        $this->assertResponse($response, 'cart/validation_cart_not_exists_in_german_response', Response::HTTP_BAD_REQUEST);
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
+
+        try {
+            $cartClient->cartDrop($token, 'de_DE');
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_in_german_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -42,6 +61,8 @@ final class DropCartApiTest extends JsonApiTestCase
      */
     public function it_deletes_a_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -51,10 +72,7 @@ final class DropCartApiTest extends JsonApiTestCase
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $this->client->request('DELETE', '/shop-api/carts/' . $token, [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
-
-        $this->assertResponseCode($response, Response::HTTP_NO_CONTENT);
+        $cartClient->cartDrop($token);
     }
 
     /**
@@ -62,6 +80,8 @@ final class DropCartApiTest extends JsonApiTestCase
      */
     public function it_returns_not_found_exception_if_order_is_in_different_state_then_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml', 'country.yml', 'shipping.yml', 'payment.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -99,9 +119,16 @@ final class DropCartApiTest extends JsonApiTestCase
 
         $bus->dispatch(new CompleteOrder($token));
 
-        $this->client->request('DELETE', '/shop-api/carts/' . $order->getTokenValue(), [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        try {
+            $cartClient->cartDrop($order->getTokenValue());
 
-        $this->assertResponse($response, 'cart/validation_cart_not_exists_response', Response::HTTP_BAD_REQUEST);
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 }

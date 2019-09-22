@@ -21,13 +21,14 @@ final class PickupApiTest extends JsonApiTestCase
      */
     public function it_creates_a_new_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
-        $this->client->request('POST', '/shop-api/carts', [], [], self::CONTENT_TYPE_HEADER);
+        $cart = $cartClient->cartPickUp();
+        $this->assertTrue($cart->valid());
 
-        $response = $this->client->getResponse();
-
-        $this->assertResponse($response, 'cart/empty_response', Response::HTTP_CREATED);
+        $this->assertResponseContent($cart, 'cart/empty_response', self::RESPONSE_FORMAT);
 
         $orderRepository = $this->get('sylius.repository.order');
         $count = $orderRepository->count([]);
@@ -40,13 +41,14 @@ final class PickupApiTest extends JsonApiTestCase
      */
     public function it_only_creates_one_cart_if_user_is_logged_in(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'customer.yml']);
 
-        $this->logInUser('oliver@queen.com', '123password');
+        $this->logInUser('oliver@queen.com', '123password', $cartClient);
 
-        $this->client->request('POST', '/shop-api/carts', [], [], static::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
-        $this->assertResponseCode($response, Response::HTTP_CREATED);
+        $cart = $cartClient->cartPickUp();
+        $this->assertTrue($cart->valid());
 
         /** @var OrderRepositoryInterface $orderRepository */
         $orderRepository = $this->get('sylius.repository.order');
@@ -66,6 +68,8 @@ final class PickupApiTest extends JsonApiTestCase
      */
     public function it_does_not_create_a_new_cart_if_cart_was_picked_up_before_logging_in(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'customer.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -74,7 +78,7 @@ final class PickupApiTest extends JsonApiTestCase
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $this->logInUserWithCart('oliver@queen.com', '123password', $token);
+        $this->logInUserWithCart('oliver@queen.com', '123password', $token, $cartClient);
 
         /** @var OrderRepositoryInterface $orderRepository */
         $orderRepository = $this->get('sylius.repository.order');

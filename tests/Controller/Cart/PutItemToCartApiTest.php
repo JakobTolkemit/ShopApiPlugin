@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Sylius\ShopApiPlugin\Controller\Cart;
 
+use FOS\RestBundle\Controller\Annotations\Put;
+use Swagger\Client\ApiException;
+use Swagger\Client\Model\PutItemToCartRequest;
 use Sylius\Component\Core\Model\OrderInterface;
 use Sylius\ShopApiPlugin\Command\Cart\AddressOrder;
 use Sylius\ShopApiPlugin\Command\Cart\AssignCustomerToCart;
@@ -27,6 +30,8 @@ final class PutItemToCartApiTest extends JsonApiTestCase
      */
     public function it_adds_a_product_to_the_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -35,17 +40,15 @@ final class PutItemToCartApiTest extends JsonApiTestCase
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_MUG_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_MUG_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/add_simple_product_to_cart_response', Response::HTTP_CREATED);
+        $cart = $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_simple_product_to_cart_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -53,6 +56,8 @@ JSON;
      */
     public function it_recalculates_cart_when_customer_log_in(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'customer.yml', 'promotion.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -62,12 +67,12 @@ JSON;
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 1));
 
-        $this->logInUserWithCart('oliver@queen.com', '123password', $token);
+        $this->logInUserWithCart('oliver@queen.com', '123password', $token, $cartClient);
 
-        $this->client->request('GET', '/shop-api/carts/' . $token, [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        $cart = $cartClient->cartSummarize($token);
 
-        $this->assertResponse($response, 'cart/recalculated_cart_after_log_in', Response::HTTP_OK);
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/recalculated_cart_after_log_in', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -75,6 +80,8 @@ JSON;
      */
     public function it_increases_quantity_of_existing_item_if_the_same_product_is_added_to_the_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -83,18 +90,16 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_MUG_CODE",
-            "quantity": 1
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_MUG_CODE",
+            "quantity" => 1,
+        ];
 
-        $this->assertResponse($response, 'cart/add_simple_product_multiple_times_to_cart_response', Response::HTTP_CREATED);
+        $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+        $cart = $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_simple_product_multiple_times_to_cart_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -102,6 +107,8 @@ JSON;
      */
     public function it_validates_if_product_is_simple_during_add_simple_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -110,17 +117,22 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_HAT_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_HAT_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_product_not_simple_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_product_not_simple_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -128,6 +140,8 @@ JSON;
      */
     public function it_validates_if_quantity_is_larger_than_0_during_add_simple_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -136,17 +150,22 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_MUG_CODE",
-            "quantity": 0
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_MUG_CODE",
+            "quantity" => 0,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_quantity_lower_than_one_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_quantity_lower_than_one_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -154,6 +173,8 @@ JSON;
      */
     public function it_converts_quantity_as_an_integer_and_adds_simple_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -162,17 +183,15 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_MUG_CODE",
-            "quantity": "3"
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_MUG_CODE",
+            "quantity" => "3",
+        ];
 
-        $this->assertResponse($response, 'cart/add_simple_product_to_cart_response', Response::HTTP_CREATED);
+        $cart = $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_simple_product_to_cart_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -180,6 +199,8 @@ JSON;
      */
     public function it_validates_if_product_code_is_defined_during_add_simple_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -188,16 +209,21 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_product_not_defined_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_product_not_defined_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -205,6 +231,8 @@ JSON;
      */
     public function it_validates_if_product_exists_during_add_simple_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -213,17 +241,22 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "BARBECUE_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "BARBECUE_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_product_not_exists_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_product_not_exists_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -231,21 +264,28 @@ JSON;
      */
     public function it_does_not_allow_to_add_product_if_cart_does_not_exists_during_add_simple_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_MUG_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_MUG_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_cart_not_exists_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -253,6 +293,8 @@ JSON;
      */
     public function it_does_not_allow_to_add_product_if_order_has_been_placed(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'country.yml', 'shipping.yml', 'payment.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -290,17 +332,22 @@ JSON;
 
         $bus->dispatch(new CompleteOrder($token));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_MUG_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $order->getTokenValue()), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_MUG_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_cart_not_exists_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -308,6 +355,8 @@ JSON;
      */
     public function it_adds_a_product_variant_to_the_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -316,18 +365,16 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_T_SHIRT_CODE",
-            "variantCode": "SMALL_LOGAN_T_SHIRT_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_T_SHIRT_CODE",
+            "variantCode" => "SMALL_LOGAN_T_SHIRT_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/add_product_variant_to_cart_response', Response::HTTP_CREATED);
+        $cart = $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_product_variant_to_cart_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -335,6 +382,8 @@ JSON;
      */
     public function it_increases_quantity_of_existing_item_if_the_same_variant_is_added_to_the_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -343,19 +392,17 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_T_SHIRT_CODE",
-            "variantCode": "SMALL_LOGAN_T_SHIRT_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_T_SHIRT_CODE",
+            "variantCode" => "SMALL_LOGAN_T_SHIRT_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/add_product_variant_multiple_times_to_cart_response', Response::HTTP_CREATED);
+        $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+        $cart = $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_product_variant_multiple_times_to_cart_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -363,6 +410,8 @@ JSON;
      */
     public function it_validates_if_quantity_is_larger_than_0_during_add_variant_based_configurable_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -371,18 +420,23 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_T_SHIRT_CODE",
-            "variantCode": "SMALL_LOGAN_T_SHIRT_CODE",
-            "quantity": 0
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_T_SHIRT_CODE",
+            "variantCode" => "SMALL_LOGAN_T_SHIRT_CODE",
+            "quantity" => 0,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_quantity_lower_than_one_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_quantity_lower_than_one_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -390,6 +444,8 @@ JSON;
      */
     public function it_converts_quantity_as_an_integer_and_adds_variant_based_configurable_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -398,18 +454,16 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_T_SHIRT_CODE",
-            "variantCode": "SMALL_LOGAN_T_SHIRT_CODE",
-            "quantity": "3"
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_T_SHIRT_CODE",
+            "variantCode" => "SMALL_LOGAN_T_SHIRT_CODE",
+            "quantity" => "3",
+        ];
 
-        $this->assertResponse($response, 'cart/add_product_variant_to_cart_response', Response::HTTP_CREATED);
+        $cart = $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_product_variant_to_cart_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -417,6 +471,8 @@ JSON;
      */
     public function it_validates_if_product_code_is_defined_during_add_variant_based_configurable_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -425,17 +481,22 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "variantCode": "SMALL_LOGAN_T_SHIRT_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "variantCode" => "SMALL_LOGAN_T_SHIRT_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_product_not_defined_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_product_not_defined_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -443,6 +504,8 @@ JSON;
      */
     public function it_validates_if_product_exists_during_add_variant_based_configurable_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -451,18 +514,23 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "BARBECUE_CODE",
-            "variantCode": "SMALL_LOGAN_T_SHIRT_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "BARBECUE_CODE",
+            "variantCode" => "SMALL_LOGAN_T_SHIRT_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_product_not_exists_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_product_not_exists_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -470,6 +538,8 @@ JSON;
      */
     public function it_validates_if_product_is_configurable_during_add_variant_based_configurable_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -478,18 +548,23 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_MUG_CODE",
-            "variantCode": "SMALL_LOGAN_T_SHIRT_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_MUG_CODE",
+            "variantCode" => "SMALL_LOGAN_T_SHIRT_CODE",
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/validation_product_not_configurable_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_product_not_configurable_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -497,6 +572,8 @@ JSON;
      */
     public function it_validates_if_product_variant_exist_during_add_variant_based_configurable_product(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -505,22 +582,29 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_T_SHIRT_CODE",
-            "variantCode": "BARBECUE_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_T_SHIRT_CODE",
+            "variantCode" => "BARBECUE_CODE",
+            "quantity" => 3
+        ];
 
-        $this->assertResponse($response, 'cart/validation_product_variant_not_exists_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_product_variant_not_exists_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     public function it_throws_an_exception_if_product_variant_has_not_been_found(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -529,20 +613,25 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_HAT_CODE",
-            "options": {
-                "HAT_SIZE": "HAT_SIZE_S"
-            },
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', '/shop-api/carts/SDAOSLEFNWU35H3QLI5325/items', [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_HAT_CODE",
+            "options" => [
+                "HAT_SIZE" => "HAT_SIZE_S",
+            ],
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/product_variant_has_not_been_found_response', Response::HTTP_NOT_FOUND);
+        try {
+            $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_NOT_FOUND, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/product_variant_has_not_been_found_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -550,6 +639,8 @@ JSON;
      */
     public function it_adds_a_product_variant_based_on_options_to_the_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -558,21 +649,19 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_HAT_CODE",
-            "options": {
-                "HAT_SIZE": "HAT_SIZE_S",
-                "HAT_COLOR": "HAT_COLOR_RED"
-            },
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', '/shop-api/carts/SDAOSLEFNWU35H3QLI5325/items', [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_HAT_CODE",
+            "options" => [
+                "HAT_SIZE" => "HAT_SIZE_S",
+                "HAT_COLOR" => "HAT_COLOR_RED",
+            ],
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/add_product_variant_based_on_options_to_cart_response', Response::HTTP_CREATED);
+        $cart = $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_product_variant_based_on_options_to_cart_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -580,6 +669,8 @@ JSON;
      */
     public function it_increases_quantity_of_existing_item_while_adding_the_same_product_variant_based_on_option_to_the_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -588,22 +679,20 @@ JSON;
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_HAT_CODE",
-            "options": {
-                "HAT_SIZE": "HAT_SIZE_S",
-                "HAT_COLOR": "HAT_COLOR_RED"
-            },
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $this->client->request('POST', sprintf('/shop-api/carts/%s/items', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-        $response = $this->client->getResponse();
+        $data = [
+            "productCode" => "LOGAN_HAT_CODE",
+            "options" => [
+                "HAT_SIZE" => "HAT_SIZE_S",
+                "HAT_COLOR" => "HAT_COLOR_RED",
+            ],
+            "quantity" => 3,
+        ];
 
-        $this->assertResponse($response, 'cart/add_product_variant_based_on_options_multiple_times_to_cart_response', Response::HTTP_CREATED);
+        $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+        $cart = $cartClient->cartAddItem($token, new PutItemToCartRequest($data));
+
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_product_variant_based_on_options_multiple_times_to_cart_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -611,19 +700,18 @@ JSON;
      */
     public function it_creates_new_cart_when_token_is_not_passed(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
-        $data =
-<<<JSON
-        {
-            "productCode": "LOGAN_MUG_CODE",
-            "quantity": 3
-        }
-JSON;
-        $this->client->request('POST', '/shop-api/carts/new/items', [], [], self::CONTENT_TYPE_HEADER, $data);
+        $data = [
+            "productCode" => "LOGAN_MUG_CODE",
+            "quantity" => 3,
+        ];
 
-        $response = $this->client->getResponse();
+        $cart = $cartClient->cartAddItem('', new PutItemToCartRequest($data));
 
-        $this->assertResponse($response, 'cart/add_simple_product_to_new_cart_response', Response::HTTP_CREATED);
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/add_simple_product_to_new_cart_response', self::RESPONSE_FORMAT);
     }
 }

@@ -38,7 +38,7 @@ final class AddCouponShopApiTest extends JsonApiTestCase
         /** @var Cart $cart */
         $cart = $cartClient->cartAddCoupon($token, new AddCouponRequest($data));
 
-        $this->assertResponseContent($cart, 'cart/cart_with_coupon_based_promotion_applied_response', self::RESPONSE_EXTENSION);
+        $this->assertResponseContent($cart, 'cart/cart_with_coupon_based_promotion_applied_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -63,7 +63,7 @@ final class AddCouponShopApiTest extends JsonApiTestCase
             $thrown = false;
         } catch (ApiException $exception) {
             $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
-            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_found_response', self::RESPONSE_EXTENSION);
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_found_response', self::RESPONSE_FORMAT);
 
             $thrown = true;
         }
@@ -89,7 +89,7 @@ final class AddCouponShopApiTest extends JsonApiTestCase
             $thrown = false;
         } catch (ApiException $exception) {
             $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
-            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_response', self::RESPONSE_EXTENSION);
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_response', self::RESPONSE_FORMAT);
 
             $thrown = true;
         }
@@ -122,7 +122,7 @@ final class AddCouponShopApiTest extends JsonApiTestCase
             $thrown = false;
         } catch (ApiException $exception) {
             $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
-            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_EXTENSION);
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_FORMAT);
 
             $thrown = true;
         }
@@ -155,7 +155,7 @@ final class AddCouponShopApiTest extends JsonApiTestCase
             $thrown = false;
         } catch (ApiException $exception) {
             $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
-            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_EXTENSION);
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_FORMAT);
 
             $thrown = true;
         }
@@ -188,7 +188,7 @@ final class AddCouponShopApiTest extends JsonApiTestCase
             $thrown = false;
         } catch (ApiException $exception) {
             $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
-            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_EXTENSION);
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_FORMAT);
 
             $thrown = true;
         }

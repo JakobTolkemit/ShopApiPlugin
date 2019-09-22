@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Sylius\ShopApiPlugin\Controller\Cart;
 
+use Swagger\Client\ApiException;
 use Sylius\ShopApiPlugin\Command\Cart\PickupCart;
 use Sylius\ShopApiPlugin\Command\Cart\PutSimpleItemToCart;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,12 +18,23 @@ final class EstimateShippingTest extends JsonApiTestCase
      */
     public function it_returns_not_found_exception_if_cart_has_not_been_found(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'country.yml']);
 
-        $this->client->request('GET', '/shop-api/carts/SDAOSLEFNWU35H3QLI5325/estimated-shipping-cost', [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        $token = 'SDAOSLEFNWU35H3QLI5325';
 
-        $this->assertResponse($response, 'cart/cart_and_country_does_not_exist_response', Response::HTTP_BAD_REQUEST);
+        try {
+            $cartClient->estimateShippingCost($token, '', '');
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/cart_and_country_does_not_exist_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -30,6 +42,8 @@ final class EstimateShippingTest extends JsonApiTestCase
      */
     public function it_calculates_estimated_shipping_cost_based_on_country(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'country.yml', 'shipping.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -39,10 +53,9 @@ final class EstimateShippingTest extends JsonApiTestCase
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $this->client->request('GET', sprintf('/shop-api/carts/%s/estimated-shipping-cost?countryCode=GB', $token), [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        $shippingCost = $cartClient->estimateShippingCost($token, 'GB', '');
 
-        $this->assertResponse($response, 'cart/estimated_shipping_cost_bases_on_country_response', Response::HTTP_OK);
+        $this->assertResponseContent($shippingCost, 'cart/estimated_shipping_cost_bases_on_country_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -50,6 +63,8 @@ final class EstimateShippingTest extends JsonApiTestCase
      */
     public function it_calculates_estimated_shipping_cost_based_on_country_and_province(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'country.yml', 'shipping.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -59,9 +74,8 @@ final class EstimateShippingTest extends JsonApiTestCase
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $this->client->request('GET', sprintf('/shop-api/carts/%s/estimated-shipping-cost?countryCode=GB&provinceCode=GB-SCT', $token), [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        $shippingCost = $cartClient->estimateShippingCost($token, 'GB', 'GB-SC');
 
-        $this->assertResponse($response, 'cart/estimated_shipping_cost_bases_on_country_and_province_response', Response::HTTP_OK);
+        $this->assertResponseContent($shippingCost, 'cart/estimated_shipping_cost_bases_on_country_and_province_response', self::RESPONSE_FORMAT);
     }
 }
