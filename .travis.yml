@@ -49,5 +49,5 @@ script:
     - java -jar doc/swagger-codegen/swagger-codegen-cli.jar generate -i doc/swagger.json -l php -o doc/generated/
     - (cd doc/generated/SwaggerClient-php && composer install)
 
-    - (cd tests/Application && bin/console server:run --env=test --quiet &)
+    - (cd tests/Application && bin/console server:run 80 --env=test --quiet &)
     - vendor/bin/phpunit
