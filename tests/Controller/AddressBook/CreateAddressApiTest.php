@@ -7,6 +7,7 @@ namespace Tests\Sylius\ShopApiPlugin\Controller\AddressBook;
 use PHPUnit\Framework\Assert;
 use Swagger\Client\Api\AddressApi;
 use Swagger\Client\ApiException;
+use Swagger\Client\Configuration;
 use Swagger\Client\Model\LoggedInCustomerAddressBookAddress;
 use Sylius\Component\Core\Model\AddressInterface;
 use Sylius\Component\Core\Model\Customer;
@@ -25,7 +26,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
      */
     public function it_allows_user_to_add_new_address_to_address_book(): void
     {
-        $addressClient = new AddressApi();
+        $addressClient = $this->getClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password');
@@ -64,7 +65,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
      */
     public function it_does_not_allow_user_to_add_new_address_to_address_book_without_passing_required_data(): void
     {
-        $addressClient = new AddressApi();
+        $addressClient = $this->getClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password');
@@ -102,7 +103,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
      */
     public function it_does_not_allow_user_to_add_new_address_to_address_book_without_passing_correct_country_code(): void
     {
-        $addressClient = new AddressApi();
+        $addressClient = $this->getClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password');
@@ -140,7 +141,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
      */
     public function it_does_not_allow_user_to_add_new_address_to_address_book_without_passing_correct_province_code(): void
     {
-        $addressClient = new AddressApi();
+        $addressClient = $this->getClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password');
@@ -172,5 +173,16 @@ final class CreateAddressApiTest extends JsonApiTestCase
             $thrown = true;
         }
         $this->assertTrue($thrown);
+    }
+
+    /**
+     * @return AddressApi
+     */
+    private function getClient(): AddressApi
+    {
+        $config = new Configuration();
+        $config->setHost('localhost');
+
+        return new AddressApi(null, $config);
     }
 }
