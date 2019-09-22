@@ -22,17 +22,17 @@ final class SetDefaultAddressApiTest extends JsonApiTestCase
      */
     public function it_sets_given_address_as_default(): void
     {
+        $addressClient = $this->createAddressClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml', 'address.yml']);
-        $this->logInUser('oliver@queen.com', '123password');
+        $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
         /** @var AddressRepositoryInterface $addressRepository */
         $addressRepository = $this->get('sylius.repository.address');
         /** @var ResourceInterface $address */
         $address = $addressRepository->findOneBy(['street' => 'Kupreska']);
 
-        $this->client->request('PATCH', sprintf('/shop-api/address-book/%s/default', $address->getId()), [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
-        $this->assertResponseCode($response, Response::HTTP_NO_CONTENT);
+        $addressClient->updateDefaultAddress($address->getId());
 
         /** @var UserRepositoryInterface $userRepository */
         $userRepository = $this->get('sylius.repository.shop_user');

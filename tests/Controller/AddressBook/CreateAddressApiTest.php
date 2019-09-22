@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Sylius\ShopApiPlugin\Controller\AddressBook;
 
 use PHPUnit\Framework\Assert;
+use Swagger\Client\Api\AddressApi;
 use Swagger\Client\ApiException;
 use Swagger\Client\Model\LoggedInCustomerAddressBookAddress;
 use Sylius\Component\Core\Model\AddressInterface;
@@ -29,7 +30,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
-        $data = new LoggedInCustomerAddressBookAddress([
+        $data = [
             "firstName" => "New name",
             "lastName" => "New lastName",
             "phoneNumber" => "0918972132",
@@ -38,9 +39,10 @@ final class CreateAddressApiTest extends JsonApiTestCase
             "street" => "New street",
             "city" => "New city",
             "postcode" => "2000",
-        ]);
+        ];
 
-        $addressClient->createAddress($data);
+        $responseAddress = $this->createaddress($data, $addressClient);
+        $this->assertTrue($responseAddress->valid());
 
         /** @var CustomerRepositoryInterface $customerRepository */
         $customerRepository = $this->get('sylius.repository.customer');
@@ -67,18 +69,17 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
-        $data = new LoggedInCustomerAddressBookAddress([
-
+        $data = [
             "firstName" => "",
             "lastName" => "",
             "countryCode" => "",
             "street" => "",
             "city" => "",
             "postcode" => "",
-        ]);
+        ];
 
         try {
-            $addressClient->createAddress($data);
+            $this->createAddress($data, $addressClient);
 
             $thrown = false;
         } catch (ApiException $exception) {
@@ -104,18 +105,17 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
-        $data = new LoggedInCustomerAddressBookAddress([
-
+        $data = [
             "firstName" => "Davor",
             "lastName" => "Duhovic",
             "countryCode" => "WRONG_COUNTRY_NAME",
             "street" => "Marmontova 21",
             "city" => "Split",
             "postcode" => "2100",
-        ]);
+        ];
 
         try {
-            $addressClient->createAddress($data);
+            $this->createAddress($data, $addressClient);
 
             $thrown = false;
         } catch (ApiException $exception) {
@@ -141,8 +141,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
         $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
-        $data = new LoggedInCustomerAddressBookAddress([
-
+        $data = [
             "firstName" => "Davor",
             "lastName" => "Duhovic",
             "countryCode" => "GB",
@@ -150,10 +149,10 @@ final class CreateAddressApiTest extends JsonApiTestCase
             "city" => "Split",
             "postcode" => "2100",
             "provinceCode" => "WRONG_PROVINCE_CODE",
-        ]);
+        ];
 
         try {
-            $addressClient->createAddress($data);
+            $this->createAddress($data, $addressClient);
 
             $thrown = false;
         } catch (ApiException $exception) {
@@ -167,5 +166,10 @@ final class CreateAddressApiTest extends JsonApiTestCase
             $thrown = true;
         }
         $this->assertTrue($thrown);
+    }
+
+    private function createaddress(array $data, AddressApi $addressClient): LoggedInCustomerAddressBookAddress
+    {
+        return $addressClient->createAddress(new LoggedInCustomerAddressBookAddress($data));
     }
 }
