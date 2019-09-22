@@ -33,11 +33,11 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $addressClient->getConfig()->setApiKey('Authorization', $this->client->getServerParameter('HTTP_Authorization'));
 
         $data = new LoggedInCustomerAddressBookAddress([
-            "first_name" => "New name",
-            "last_name" => "New lastName",
-            "phone_number" => "0918972132",
-            "country_code" => "GB",
-            "province_code" => "GB-WLS",
+            "firstName" => "New name",
+            "lastName" => "New lastName",
+            "phoneNumber" => "0918972132",
+            "countryCode" => "GB",
+            "provinceCode" => "GB-WLS",
             "street" => "New street",
             "city" => "New city",
             "postcode" => "2000",
@@ -73,9 +73,9 @@ final class CreateAddressApiTest extends JsonApiTestCase
 
         $data = new LoggedInCustomerAddressBookAddress([
 
-            "first_name" => "",
-            "last_name" => "",
-            "country_code" => "",
+            "firstName" => "",
+            "lastName" => "",
+            "countryCode" => "",
             "street" => "",
             "city" => "",
             "postcode" => "",
@@ -111,9 +111,9 @@ final class CreateAddressApiTest extends JsonApiTestCase
 
         $data = new LoggedInCustomerAddressBookAddress([
 
-            "first_name" => "Davor",
-            "last_name" => "Duhovic",
-            "country_code" => "WRONG_COUNTRY_NAME",
+            "firstName" => "Davor",
+            "lastName" => "Duhovic",
+            "countryCode" => "WRONG_COUNTRY_NAME",
             "street" => "Marmontova 21",
             "city" => "Split",
             "postcode" => "2100",
@@ -149,13 +149,13 @@ final class CreateAddressApiTest extends JsonApiTestCase
 
         $data = new LoggedInCustomerAddressBookAddress([
 
-            "first_name" => "Davor",
-            "last_name" => "Duhovic",
-            "country_code" => "GB",
+            "firstName" => "Davor",
+            "lastName" => "Duhovic",
+            "countryCode" => "GB",
             "street" => "Marmontova 21",
             "city" => "Split",
             "postcode" => "2100",
-            "province_code" => "WRONG_PROVINCE_CODE",
+            "provinceCode" => "WRONG_PROVINCE_CODE",
         ]);
 
         try {

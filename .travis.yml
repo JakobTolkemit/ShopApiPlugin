@@ -48,7 +48,7 @@ script:
     - vendor/bin/phpspec run --format dot -vvv --no-interaction
       
     # Build clients from swagger
-    - java -jar doc/swagger-codegen/swagger-codegen-cli.jar generate -i doc/swagger.json -l php -o doc/generated/
+    - java -jar doc/swagger-codegen/swagger-codegen-cli.jar generate -i doc/swagger.json -l php -o doc/generated/ -c doc/swagger-codegen/php-config.json
     - (cd doc/generated/SwaggerClient-php && composer install)
 
     - (cd tests/Application && bin/console server:run 8080 --env=test --quiet &)
