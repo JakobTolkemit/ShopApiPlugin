@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Tests\Sylius\ShopApiPlugin\Controller\AddressBook;
 
 use PHPUnit\Framework\Assert;
-use Swagger\Client\Api\AddressApi;
 use Swagger\Client\ApiException;
-use Swagger\Client\Configuration;
 use Swagger\Client\Model\LoggedInCustomerAddressBookAddress;
 use Sylius\Component\Core\Model\AddressInterface;
 use Sylius\Component\Core\Model\Customer;
@@ -29,8 +27,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $addressClient = $this->createAddressClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
-        $this->logInUser('oliver@queen.com', '123password');
-        $addressClient->getConfig()->setApiKey('Authorization', $this->client->getServerParameter('HTTP_Authorization'));
+        $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
         $data = new LoggedInCustomerAddressBookAddress([
             "firstName" => "New name",
@@ -68,8 +65,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $addressClient = $this->createAddressClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
-        $this->logInUser('oliver@queen.com', '123password');
-        $addressClient->getConfig()->setApiKey('Authorization', $this->client->getServerParameter('HTTP_Authorization'));
+        $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
         $data = new LoggedInCustomerAddressBookAddress([
 
@@ -106,8 +102,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $addressClient = $this->createAddressClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
-        $this->logInUser('oliver@queen.com', '123password');
-        $addressClient->getConfig()->setApiKey('Authorization', $this->client->getServerParameter('HTTP_Authorization'));
+        $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
         $data = new LoggedInCustomerAddressBookAddress([
 
@@ -144,8 +139,7 @@ final class CreateAddressApiTest extends JsonApiTestCase
         $addressClient = $this->createAddressClient();
 
         $this->loadFixturesFromFiles(['channel.yml', 'customer.yml', 'country.yml']);
-        $this->logInUser('oliver@queen.com', '123password');
-        $addressClient->getConfig()->setApiKey('Authorization', $this->client->getServerParameter('HTTP_Authorization'));
+        $this->logInUser('oliver@queen.com', '123password', $addressClient);
 
         $data = new LoggedInCustomerAddressBookAddress([
 
