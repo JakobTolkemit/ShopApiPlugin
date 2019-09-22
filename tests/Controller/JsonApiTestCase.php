@@ -71,7 +71,7 @@ abstract class JsonApiTestCase extends \ApiTestCase\JsonApiTestCase
     private function getClientConfig(): Configuration
     {
         $config = new Configuration();
-        $config->setHost('localhost:8080');
+        $config->setHost('localhost:8080/shop-api');
 
         return $config;
     }
