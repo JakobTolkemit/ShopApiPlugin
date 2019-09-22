@@ -12,6 +12,7 @@ use Sylius\Component\Core\Model\AddressInterface;
 use Sylius\Component\Core\Model\Customer;
 use Sylius\Component\Core\Repository\AddressRepositoryInterface;
 use Sylius\Component\Core\Repository\CustomerRepositoryInterface;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\Sylius\ShopApiPlugin\Controller\JsonApiTestCase;
 use Tests\Sylius\ShopApiPlugin\Controller\Utils\ShopUserLoginTrait;
 
@@ -79,8 +80,21 @@ final class CreateAddressApiTest extends JsonApiTestCase
             "postcode" => "",
         ]);
 
-        $this->expectException(ApiException::class);
-        $addressClient->createAddress($data);
+        try {
+            $addressClient->createAddress($data);
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent(
+                $exception->getResponseBody(),
+                'address_book/validation_create_address_book_response',
+                'json'
+            );
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -104,8 +118,21 @@ final class CreateAddressApiTest extends JsonApiTestCase
             "postcode" => "2100",
         ]);
 
-        $this->expectException(ApiException::class);
-        $addressClient->createAddress($data);
+        try {
+            $addressClient->createAddress($data);
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent(
+                $exception->getResponseBody(),
+                'address_book/validation_create_address_book_with_wrong_country_response',
+                'json'
+            );
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -130,7 +157,20 @@ final class CreateAddressApiTest extends JsonApiTestCase
             "province_code" => "WRONG_PROVINCE_CODE",
         ]);
 
-        $this->expectException(ApiException::class);
-        $addressClient->createAddress($data);
+        try {
+            $addressClient->createAddress($data);
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent(
+                $exception->getResponseBody(),
+                'address_book/validation_create_address_book_with_wrong_province_response',
+                'json'
+            );
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 }
