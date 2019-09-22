@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Sylius\ShopApiPlugin\Controller\Cart;
 
+use Swagger\Client\ApiException;
+use Swagger\Client\Model\AddCouponRequest;
+use Swagger\Client\Model\Cart;
 use Sylius\ShopApiPlugin\Command\Cart\PickupCart;
 use Sylius\ShopApiPlugin\Command\Cart\PutSimpleItemToCart;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,6 +20,8 @@ final class AddCouponShopApiTest extends JsonApiTestCase
      */
     public function it_allows_to_add_promotion_coupon_to_the_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml', 'coupon_based_promotion.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -26,18 +31,14 @@ final class AddCouponShopApiTest extends JsonApiTestCase
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $data =
-<<<JSON
-        {
-            "coupon": "BANANAS"
-        }
-JSON;
+        $data = [
+            "coupon" => "BANANAS",
+        ];
 
-        $this->client->request('PUT', sprintf('/shop-api/carts/%s/coupon', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
+        /** @var Cart $cart */
+        $cart = $cartClient->cartAddCoupon($token, new AddCouponRequest($data));
 
-        $response = $this->client->getResponse();
-
-        $this->assertResponse($response, 'cart/cart_with_coupon_based_promotion_applied_response', Response::HTTP_OK);
+        $this->assertResponseContent($cart, 'cart/cart_with_coupon_based_promotion_applied_response', self::RESPONSE_EXTENSION);
     }
 
     /**
@@ -45,6 +46,8 @@ JSON;
      */
     public function it_does_not_allow_to_add_promotion_if_coupon_is_not_specified(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -54,11 +57,17 @@ JSON;
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $this->client->request('PUT', sprintf('/shop-api/carts/%s/coupon', $token), [], [], self::CONTENT_TYPE_HEADER);
+        try {
+            $cartClient->cartAddCoupon($token, new AddCouponRequest());
 
-        $response = $this->client->getResponse();
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_found_response', self::RESPONSE_EXTENSION);
 
-        $this->assertResponse($response, 'cart/validation_coupon_not_found_response', Response::HTTP_BAD_REQUEST);
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -66,20 +75,25 @@ JSON;
      */
     public function it_does_not_allow_to_add_promotion_code_if_cart_does_not_exists(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml']);
 
-        $data =
-<<<JSON
-        {
-            "coupon": "BANANAS"
+        $data = [
+            "coupon" => "BANANAS",
+        ];
+
+        try {
+            $cartClient->cartAddCoupon('WRONGTOKEN', new AddCouponRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_response', self::RESPONSE_EXTENSION);
+
+            $thrown = true;
         }
-JSON;
-
-        $this->client->request('PUT', '/shop-api/carts/WRONGTOKEN/coupon', [], [], self::CONTENT_TYPE_HEADER, $data);
-
-        $response = $this->client->getResponse();
-
-        $this->assertResponse($response, 'cart/validation_cart_not_exists_response', Response::HTTP_BAD_REQUEST);
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -87,6 +101,8 @@ JSON;
      */
     public function it_does_not_allow_to_add_promotion_code_if_promotion_code_does_not_exist(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -96,18 +112,21 @@ JSON;
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $data =
-<<<JSON
-        {
-            "coupon": "BANANAS"
+        $data = [
+            "coupon" => "BANANAS",
+        ];
+
+        try {
+            $cartClient->cartAddCoupon($token, new AddCouponRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_EXTENSION);
+
+            $thrown = true;
         }
-JSON;
-
-        $this->client->request('PUT', sprintf('/shop-api/carts/%s/coupon', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-
-        $response = $this->client->getResponse();
-
-        $this->assertResponse($response, 'cart/validation_coupon_not_valid_response', Response::HTTP_BAD_REQUEST);
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -115,6 +134,8 @@ JSON;
      */
     public function it_does_not_allow_to_add_promotion_code_if_code_is_invalid(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml', 'coupon_based_promotion.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -124,18 +145,21 @@ JSON;
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $data =
-<<<JSON
-        {
-            "coupon": "USED_BANANA"
+        $data = [
+            "coupon" => "USED_BANANA",
+        ];
+
+        try {
+            $cartClient->cartAddCoupon($token, new AddCouponRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_EXTENSION);
+
+            $thrown = true;
         }
-JSON;
-
-        $this->client->request('PUT', sprintf('/shop-api/carts/%s/coupon', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-
-        $response = $this->client->getResponse();
-
-        $this->assertResponse($response, 'cart/validation_coupon_not_valid_response', Response::HTTP_BAD_REQUEST);
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -143,6 +167,8 @@ JSON;
      */
     public function it_does_not_allow_to_add_promotion_code_if_related_promotion_is_not_valid(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['channel.yml', 'shop.yml', 'coupon_based_promotion.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -152,17 +178,20 @@ JSON;
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $data =
-<<<JSON
-        {
-            "coupon": "PINEAPPLE"
+        $data = [
+            "coupon" => "PINEAPPLE",
+        ];
+
+        try {
+            $cartClient->cartAddCoupon($token, new AddCouponRequest($data));
+
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_coupon_not_valid_response', self::RESPONSE_EXTENSION);
+
+            $thrown = true;
         }
-JSON;
-
-        $this->client->request('PUT', sprintf('/shop-api/carts/%s/coupon', $token), [], [], self::CONTENT_TYPE_HEADER, $data);
-
-        $response = $this->client->getResponse();
-
-        $this->assertResponse($response, 'cart/validation_coupon_not_valid_response', Response::HTTP_BAD_REQUEST);
+        $this->assertTrue($thrown);
     }
 }

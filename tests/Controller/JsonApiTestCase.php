@@ -16,6 +16,7 @@ use Swagger\Client\Configuration;
 abstract class JsonApiTestCase extends \ApiTestCase\JsonApiTestCase
 {
     public const CONTENT_TYPE_HEADER = ['CONTENT_TYPE' => 'application/json', 'ACCEPT' => 'application/json'];
+    public const RESPONSE_EXTENSION = 'json';
 
     public function __construct(?string $name = null, array $data = [], string $dataName = '')
     {
