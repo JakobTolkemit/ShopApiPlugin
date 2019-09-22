@@ -154,7 +154,7 @@ final class ChangeItemQuantityApiTest extends JsonApiTestCase
         ];
 
         try {
-            $cartClient->cartUpdateItem($token, 420, new ChangeItemQuantityRequest());
+            $cartClient->cartUpdateItem($token, 420, new ChangeItemQuantityRequest($data));
 
             $thrown = false;
         } catch (ApiException $exception) {

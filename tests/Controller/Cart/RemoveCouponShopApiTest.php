@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Sylius\ShopApiPlugin\Controller\Cart;
 
+use Swagger\Client\ApiException;
 use Sylius\ShopApiPlugin\Command\Cart\AddCoupon;
 use Sylius\ShopApiPlugin\Command\Cart\PickupCart;
 use Sylius\ShopApiPlugin\Command\Cart\PutSimpleItemToCart;
@@ -18,6 +19,8 @@ final class RemoveCouponShopApiTest extends JsonApiTestCase
      */
     public function it_allows_to_remove_a_promotion_coupon_from_the_cart(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'coupon_based_promotion.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -28,11 +31,10 @@ final class RemoveCouponShopApiTest extends JsonApiTestCase
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
         $bus->dispatch(new AddCoupon($token, 'BANANAS'));
 
-        $this->client->request('DELETE', sprintf('/shop-api/carts/%s/coupon', $token), [], [], self::CONTENT_TYPE_HEADER, null);
+        $cart = $cartClient->cartRemoveCoupon($token);
 
-        $response = $this->client->getResponse();
-
-        $this->assertResponse($response, 'cart/filled_cart_with_simple_product_summary_response', Response::HTTP_OK);
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/filled_cart_with_simple_product_summary_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -40,6 +42,8 @@ final class RemoveCouponShopApiTest extends JsonApiTestCase
      */
     public function it_allows_to_remove_a_promotion_coupon_from_the_cart_even_if_it_does_not_exist(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'coupon_based_promotion.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -49,11 +53,10 @@ final class RemoveCouponShopApiTest extends JsonApiTestCase
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
         $bus->dispatch(new PutSimpleItemToCart($token, 'LOGAN_MUG_CODE', 5));
 
-        $this->client->request('DELETE', sprintf('/shop-api/carts/%s/coupon', $token), [], [], self::CONTENT_TYPE_HEADER, null);
+        $cart = $cartClient->cartRemoveCoupon($token);
 
-        $response = $this->client->getResponse();
-
-        $this->assertResponse($response, 'cart/filled_cart_with_simple_product_summary_response', Response::HTTP_OK);
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/filled_cart_with_simple_product_summary_response', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -61,12 +64,20 @@ final class RemoveCouponShopApiTest extends JsonApiTestCase
      */
     public function it_does_not_allow_to_add_promotion_code_if_cart_does_not_exists(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
-        $this->client->request('DELETE', '/shop-api/carts/WRONGTOKEN/coupon', [], [], self::CONTENT_TYPE_HEADER, null);
+        try {
+            $cartClient->cartRemoveCoupon('WRONGTOKEN');
 
-        $response = $this->client->getResponse();
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/validation_cart_not_exists_response', self::RESPONSE_FORMAT);
 
-        $this->assertResponse($response, 'cart/validation_cart_not_exists_response', Response::HTTP_BAD_REQUEST);
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 }

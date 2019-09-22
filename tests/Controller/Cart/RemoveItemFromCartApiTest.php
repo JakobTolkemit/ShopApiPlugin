@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Sylius\ShopApiPlugin\Controller\Cart;
 
+use Swagger\Client\ApiException;
 use Sylius\Component\Core\Model\OrderItemInterface;
 use Sylius\Component\Core\Repository\OrderRepositoryInterface;
 use Sylius\ShopApiPlugin\Command\Cart\PickupCart;
@@ -20,6 +21,8 @@ final class RemoveItemFromCartApiTest extends JsonApiTestCase
      */
     public function it_deletes_item(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -37,10 +40,10 @@ final class RemoveItemFromCartApiTest extends JsonApiTestCase
         /** @var OrderItemInterface $orderItem */
         $orderItem = $order->getItems()->first();
 
-        $this->client->request('DELETE', '/shop-api/carts/SDAOSLEFNWU35H3QLI5325/items/' . $orderItem->getId(), [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        $cart = $cartClient->cartDeleteItem($token, $orderItem->getId());
 
-        $this->assertResponse($response, 'cart/cart_after_deleting_an_item', Response::HTTP_OK);
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/cart_after_deleting_an_item', self::RESPONSE_FORMAT);
     }
 
     /**
@@ -48,6 +51,8 @@ final class RemoveItemFromCartApiTest extends JsonApiTestCase
      */
     public function it_returns_not_found_exception_if_cart_item_has_not_been_found(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -56,10 +61,17 @@ final class RemoveItemFromCartApiTest extends JsonApiTestCase
         $bus = $this->get('sylius_shop_api_plugin.command_bus');
         $bus->dispatch(new PickupCart($token, 'WEB_GB'));
 
-        $this->client->request('DELETE', '/shop-api/carts/SDAOSLEFNWU35H3QLI5325/items/420', [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        try {
+            $cartClient->cartDeleteItem($token, 420);
 
-        $this->assertResponse($response, 'cart/cart_item_has_not_been_found_response', Response::HTTP_BAD_REQUEST);
+            $thrown = false;
+        } catch (ApiException $exception) {
+            $this->assertSame(Response::HTTP_BAD_REQUEST, $exception->getCode());
+            $this->assertResponseContent($exception->getResponseBody(), 'cart/cart_item_has_not_been_found_response', self::RESPONSE_FORMAT);
+
+            $thrown = true;
+        }
+        $this->assertTrue($thrown);
     }
 
     /**
@@ -67,6 +79,8 @@ final class RemoveItemFromCartApiTest extends JsonApiTestCase
      */
     public function it_reprocesses_the_order_after_deleting_an_item(): void
     {
+        $cartClient = $this->createCartClient();
+
         $this->loadFixturesFromFiles(['shop.yml', 'promotion.yml']);
 
         $token = 'SDAOSLEFNWU35H3QLI5325';
@@ -85,9 +99,9 @@ final class RemoveItemFromCartApiTest extends JsonApiTestCase
         /** @var OrderItemInterface $orderItem */
         $orderItem = $order->getItems()->last();
 
-        $this->client->request('DELETE', '/shop-api/carts/SDAOSLEFNWU35H3QLI5325/items/' . $orderItem->getId(), [], [], self::CONTENT_TYPE_HEADER);
-        $response = $this->client->getResponse();
+        $cart = $cartClient->cartDeleteItem($token, $orderItem->getId());
 
-        $this->assertResponse($response, 'cart/reprocessed_cart_after_deleting_an_item', Response::HTTP_OK);
+        $this->assertTrue($cart->valid());
+        $this->assertResponseContent($cart, 'cart/reprocessed_cart_after_deleting_an_item', self::RESPONSE_FORMAT);
     }
 }
