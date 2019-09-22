@@ -1178,7 +1178,7 @@
         } ]
       }
     },
-    "/address-book" : {
+    "/address-book/" : {
       "get" : {
         "tags" : [ "address" ],
         "summary" : "Gets the address book of the currently logged in user",
